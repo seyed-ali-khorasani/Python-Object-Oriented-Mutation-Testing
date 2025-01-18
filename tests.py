@@ -1,5 +1,5 @@
 import unittest
-from src.mutants.example_PCI_SubClass_ParentClass import *
+from src.mutants.example_OMR_AnotherSubClass_method_two import *
 import sys
 
 class TestParentClass(unittest.TestCase):

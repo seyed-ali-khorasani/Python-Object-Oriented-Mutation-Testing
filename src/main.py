@@ -5,6 +5,9 @@ import unittest
 import importlib.util
 import shutil
 import time
+import itertools
+import google.generativeai as genai
+import copy
 from AMC import *
 from IHI import *
 from IHD import *
@@ -26,6 +29,8 @@ from OMD import *
 from OAC import *
 from prompt import *
 import example as source_file
+
+
 
 class CodeAnalyzer:
     def __init__(self, code_file):
@@ -143,6 +148,8 @@ class CodeAnalyzer:
                 program_body_info["assignments"].append(ast.unparse(node))
 
         return program_body_info
+    
+
 
 # جایگزینی ماژول اصلی یا جهش قبلی با جهش جدید
 def replace_module_with_mutant(mutant_path, last_mutation_module):
@@ -198,11 +205,13 @@ if __name__ == "__main__":
     chat = model.start_chat()
     response = chat.send_message(analyze)
     operator_list = [line for line in response.text.strip().splitlines() if line.strip()]
-    #opertor_list = ["AMC","IHI","IHD","IOD","IOP","IOR","ISI","ISD",
-                    "IPC","PNC","PMD","PPD","PCI","PCD","PPC","PRV",
-                    "OMR","OMD","OAC"]
-    
-    for operator in opertor_list:
+
+    # opertor_list = ["AMC","IHI","IHD","IOD","IOP","IOR","ISI","ISD",
+    #                 "IPC","PNC","PMD","PPD","PCI","PCD","PPC","PRV",
+    #                 "OMR","OMD","OAC"]
+
+    print(operator_list)
+    for operator in operator_list:
         match operator:
             case "AMC":
                 acm_mut = ACMMutation("src\example.py")
