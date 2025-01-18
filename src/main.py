@@ -24,7 +24,125 @@ from PRV import *
 from OMR import *
 from OMD import *
 from OAC import *
+from prompt import *
 import example as source_file
+
+class CodeAnalyzer:
+    def __init__(self, code_file):
+        self.code_file = code_file
+        self.code = self._read_code()
+        self.tree = ast.parse(self.code)
+        self.parent_child_map = self.find_parent_child_classes()
+        self.class_info = self.extract_class_information()
+        self.program_body_info = self.analyze_program_body()
+
+    def _read_code(self):
+        with open(self.code_file, 'r',encoding="utf-8") as f:
+            return f.read()
+
+    def find_parent_child_classes(self):
+        parent_child_map = {}
+        for node in ast.walk(self.tree):
+            if isinstance(node, ast.ClassDef):
+                for base in node.bases:
+                    if isinstance(base, ast.Name):
+                        parent_class = base.id
+                        child_class = node.name
+                        if parent_class not in parent_child_map:
+                            parent_child_map[parent_class] = []
+                        parent_child_map[parent_class].append(child_class)
+        return parent_child_map
+
+    def extract_class_information(self):
+        class_info = {}
+        for class_name, class_def in self.find_class_definitions().items():
+            class_info[class_name] = {
+                "methods": self.get_methods(class_def),
+                "members": self.get_members(class_def),
+                "access_modifiers": self.get_access_modifiers(class_def),
+                "constructor_args": self.get_constructor_args(class_def),
+                "super_calls": self.get_super_calls(class_def),
+                "instantiations": self.find_instantiations(class_name),
+            }
+        return class_info
+
+    def find_class_definitions(self):
+        class_definitions = {}
+        for node in ast.walk(self.tree):
+            if isinstance(node, ast.ClassDef):
+                class_definitions[node.name] = node
+        return class_definitions
+
+    def get_methods(self, class_def):
+        methods = []
+        for node in ast.walk(class_def):
+            if isinstance(node, ast.FunctionDef):
+                methods.append(node.name)
+        return methods
+
+    def get_members(self, class_def):
+        members = []
+        for node in ast.walk(class_def):
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and target.value.id == 'self':
+                        members.append(target.attr)
+            elif isinstance(node, ast.AnnAssign):
+                if isinstance(node.target, ast.Attribute) and isinstance(node.target.value, ast.Name) and node.target.value.id == 'self':
+                    members.append(node.target.attr)
+        return members
+
+    def get_access_modifiers(self, class_def):
+        access_modifiers = {}
+        for member in self.get_members(class_def):
+            if member.startswith("__") and not member.endswith("__"):
+                access_modifiers[member] = "private"
+            elif member.startswith("_"):
+                access_modifiers[member] = "protected"
+            else:
+                access_modifiers[member] = "public"
+        return access_modifiers
+
+    def get_constructor_args(self, class_def):
+        constructor_args = []
+        for node in ast.walk(class_def):
+            if isinstance(node, ast.FunctionDef) and node.name == "__init__":
+                constructor_args = [arg.arg for arg in node.args.args if arg.arg != 'self']
+                break
+        return constructor_args
+
+    def get_super_calls(self, class_def):
+        super_calls = []
+        for node in ast.walk(class_def):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == 'super':
+                super_calls.append(ast.unparse(node))
+        return super_calls
+
+    def find_instantiations(self, class_name):
+        instantiations = []
+        for node in ast.walk(self.tree):
+            if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
+                if isinstance(node.value.func, ast.Name) and node.value.func.id == class_name:
+                    instantiations.append(ast.unparse(node))
+        return instantiations
+
+    def analyze_program_body(self):
+        program_body_info = {
+            "method_calls": [],
+            "type_casts": [],
+            "assignments": [],
+        }
+        for node in ast.walk(self.tree):
+            if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call):
+                if isinstance(node.value.func, ast.Attribute):
+                    program_body_info["method_calls"].append(ast.unparse(node))
+                elif isinstance(node.value.func, ast.Name):
+                    if node.value.func.id in self.class_info:
+                        program_body_info["type_casts"].append(ast.unparse(node))
+            elif isinstance(node, ast.Assign):
+                program_body_info["assignments"].append(ast.unparse(node))
+
+        return program_body_info
 
 # جایگزینی ماژول اصلی یا جهش قبلی با جهش جدید
 def replace_module_with_mutant(mutant_path, last_mutation_module):
@@ -73,7 +191,14 @@ def calculate_mutation_score(mutant_files, mutation_list):
 
 if __name__ == "__main__":
 
-    opertor_list = ["AMC","IHI","IHD","IOD","IOP","IOR","ISI","ISD",
+    code_analyzer = CodeAnalyzer("src\example.py")
+    analyze=f"{str(code_analyzer.parent_child_map)}\n{str(code_analyzer.class_info)}"
+    genai.configure(api_key='AIzaSyCoYdQWfEmFUIT-FoUYk-fazYrM2NbIQ-s')
+    model = genai.GenerativeModel("gemini-2.0-flash-exp", system_instruction=PROMPT)
+    chat = model.start_chat()
+    response = chat.send_message(analyze)
+    operator_list = [line for line in response.text.strip().splitlines() if line.strip()]
+    #opertor_list = ["AMC","IHI","IHD","IOD","IOP","IOR","ISI","ISD",
                     "IPC","PNC","PMD","PPD","PCI","PCD","PPC","PRV",
                     "OMR","OMD","OAC"]
     
