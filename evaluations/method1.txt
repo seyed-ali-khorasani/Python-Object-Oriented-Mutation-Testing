@@ -1,0 +1,17 @@
+خصوصیاتی که در راه اول استخراج شده اند
+کلاس ها و ارث بری ها
+توابع:
+
+     methods
+     constructors
+     super_calls
+اعضای توابع :
+Fields
+Access modifiers
+Program Body (Outside Class Definitions):
+
+بدنه برنامه:
+Method Calls
+Type Casts
+Assignments
+Instantiation of Classes:
